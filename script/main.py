@@ -26,8 +26,8 @@ def analyze_logs(log_file_path, top_responses=3, top_errors=2):
     # most used phrases
     pattern = r"- (.+)"
     messages = re.findall(pattern, logs)
-    normalized_messages = [msg.strip().lower().replace('"', '') for msg in messages]
-    phrases_count = Counter(normalized_messages)
+    #normalized_messages = [msg.strip().lower().replace('"', '') for msg in messages]
+    phrases_count = Counter(messages)
 
     # most common errors:
     pattern = r"\] (\w+) - (.+)"
@@ -37,40 +37,52 @@ def analyze_logs(log_file_path, top_responses=3, top_errors=2):
     error_msg = []
 
     for msg_type, text in matches:
-        text = text.strip().lower().replace('"', '')
+        #text = text.strip().lower().replace('"', '')
         if msg_type == 'ERROR':
             error_msg.append(text)
 
     error_counts = Counter(error_msg)
+    error_counts = dict(sorted(error_counts.items(), key=lambda item: item[1], reverse=True))
 
-    print(f'Total of errors {error_counts}')
+    i = 0
+    error_msgs = ""
+    for k in error_counts:
+        i = i + 1
+        error_msgs += f"{i}. {k} ({error_counts[k]} times)\n"
+    error_msgs = error_msgs.strip()
 
 
+    info_count = type_count.get('INFO',0)
+    error_count = type_count.get('ERROR',0)
+    warning_count = type_count.get('WARNING',0)
+
+    phrases_agent = {}
+    phrases_count = dict(sorted(phrases_count.items(), key=lambda item: item[1], reverse=True))
+    for k in phrases_count.keys():
+        if 'Agent Response:' in k:
+            phrases_agent[k.replace('Agent Response:','')] = f'({phrases_count[k]} times)'
 
 
-    '''
+    i = 0
+    agent_responses = "Top {} AI Responses:\n".format(len(phrases_agent))
+    for k in phrases_agent:
+        i = i + 1
+        agent_responses += f"{i}. {k} {phrases_agent[k]}\n"
+    agent_responses = agent_responses.strip()
+
+
+    report = f'''
     Log Summary:
-    - INFO messages: 42
-    - ERROR messages: 8
-    - WARNING messages: 5
+    - INFO messages: {info_count} 
+    - ERROR messages: {error_count}
+    - WARNING messages: {warning_count}
 
-    Top 3 AI Responses:
-    1. "Hello! How can I help you today?" (12 times)
-    2. "I'm sorry, I didn't understand that." (7 times)
-    3. "Please provide more details." (5 times)
+    {agent_responses}
 
     Most Common Errors:
-    1. Model Timeout after 5000ms (3 times)
-    2. API Connection Failure (2 times)
+    {error_msgs}
     '''
-
-
-
-
-
-
-
-    return read_file(log_file_path)
+    return report
 
 def read_file(file_path):
     with open(file_path, 'r') as file:
